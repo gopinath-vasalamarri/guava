@@ -57,13 +57,13 @@ enum BloomFilterStrategies implements BloomFilter.Strategy {
       int hash2 = (int) (hash64 >>> 32);
 
       boolean bitsChanged = false;
+      int signedCombinedHash = 0;
+      int combinedHash = hash1;
       for (int i = 1; i <= numHashFunctions; i++) {
-        int combinedHash = hash1 + (i * hash2);
+        combinedHash += hash2;
         // Flip all the bits if it's negative (guaranteed positive number)
-        if (combinedHash < 0) {
-          combinedHash = ~combinedHash;
-        }
-        bitsChanged |= bits.set(combinedHash % bitSize);
+        signedCombinedHash = (combinedHash < 0) ? ~combinedHash : combinedHash;
+        bitsChanged |= bits.set(signedCombinedHash % bitSize);
       }
       return bitsChanged;
     }
@@ -79,13 +79,13 @@ enum BloomFilterStrategies implements BloomFilter.Strategy {
       int hash1 = (int) hash64;
       int hash2 = (int) (hash64 >>> 32);
 
+      int signedCombinedHash = 0;
+      int combinedHash = hash1;
       for (int i = 1; i <= numHashFunctions; i++) {
-        int combinedHash = hash1 + (i * hash2);
+        combinedHash += hash2;
         // Flip all the bits if it's negative (guaranteed positive number)
-        if (combinedHash < 0) {
-          combinedHash = ~combinedHash;
-        }
-        if (!bits.get(combinedHash % bitSize)) {
+        signedCombinedHash = (combinedHash < 0) ? ~combinedHash : combinedHash;
+        if (!bits.get(signedCombinedHash % bitSize)) {
           return false;
         }
       }
@@ -103,7 +103,7 @@ enum BloomFilterStrategies implements BloomFilter.Strategy {
     public <T extends @Nullable Object> boolean put(
         @ParametricNullness T object,
         Funnel<? super T> funnel,
-        int numHashFunctions,
+        int numHashFunctions,E
         LockFreeBitArray bits) {
       long bitSize = bits.bitSize();
       byte[] bytes = Hashing.murmur3_128().hashObject(object, funnel).getBytesInternal();
